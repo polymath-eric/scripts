@@ -1,0 +1,6 @@
+{
+  "signer": "alice",
+  "webhookUrl": "http://host.docker.internal:2022/developer-testing/webhook",
+  "description": "A place to exchange Assets",
+  "type": "Exchange"
+}
