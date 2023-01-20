@@ -1,7 +1,7 @@
 PORT=2022
 
 curl -X 'POST' \
-  "http://localhost:$PORT/venues/create" \
+  "$REST_URL/venues/create" \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
   -d @createVenueHook.json \

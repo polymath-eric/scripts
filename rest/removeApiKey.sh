@@ -1,5 +1,5 @@
 curl -X 'POST' \
-  'http://localhost:2022/auth/api-key/delete' \
+  "$REST_URL/auth/api-key/delete" \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
   -H "x-api-key: $API_KEY" \
