@@ -1,0 +1,101 @@
+services:
+  postgres:
+    image: postgres:12-alpine
+    restart: unless-stopped
+    ports:
+      - ${PG_PORT:-5432}:5432
+    volumes:
+      - './pg-extensions.sh:/docker-entrypoint-initdb.d/load-extensions.sh'
+    environment:
+      POSTGRES_PASSWORD: postgres
+
+  vault:
+    image: vault:${VAULT_VERSION:-latest}
+    restart: unless-stopped
+    ports:
+      - ${VAULT_PORT:-8200}:8200
+    cap_add:
+      - IPC_LOCK
+    entrypoint: vault server -dev -dev-listen-address="0.0.0.0:8200" -dev-root-token-id="root"
+
+  vault-init:
+    image: vault:${VAULT_VERSION:-latest}
+    volumes:
+      - ./vault-init.sh:/vault-init.sh
+    depends_on:
+      - vault
+    restart: "no"
+    entrypoint: sh -c "/vault-init.sh"
+
+  alice:
+    image: ${CHAIN_IMAGE:-polymeshassociation/polymesh:latest-develop-debian}
+    init: true # Faster shutdown by container process not be PID 1
+    restart: unless-stopped
+    ports: # expose ports to localhost
+      - '9944:9944' # ws://
+      - '9933:9933' # http://
+      - '30333:30333' # for other nodes
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    volumes:
+      - './chain-entry.sh:/chain-entry.sh'
+    entrypoint: '/chain-entry.sh'
+    command:
+      [
+        '--alice --chain dev',
+      ]
+
+  subquery:
+    image: '${SUBQUERY_IMAGE:-polymeshassociation/polymesh-subquery:latest}'
+    init: true
+    restart: unless-stopped
+    depends_on:
+      - 'postgres'
+    environment:
+      NETWORK_ENDPOINT: ws://alice:9944
+      NETWORK_HTTP_ENDPOINT: http://alice:9933
+      DB_USER: '${PG_USER:-postgres}'
+      DB_PASS: '${PG_PASSWORD:-postgres}'
+      DB_DATABASE: '${PG_DB:-postgres}'
+      DB_PORT: '${PG_PORT:-postgres}'
+      DB_HOST: '${PG_HOST:-postgres}'
+      NODE_ENV: local
+    command:
+      - --batch-size=500
+      - -f=/app
+      - --local
+
+  tooling:
+    image: ${TOOLING_IMAGE:-polymeshassociation/polymesh-tooling-gql}
+    init: true
+    restart: unless-stopped
+    depends_on:
+      - 'postgres'
+    ports:
+      - ${TOOLING_PORT:-3007}:3000
+    environment:
+      PG_HOST: '${PG_HOST:-postgres}'
+      PG_USERNAME: '${PG_USER:-postgres}'
+      PG_PASSWORD: '${PG_PASSWORD:-postgres}'
+      STAGE: dev
+
+  rest_api:
+    image: ${REST_IMAGE:-polymeshassociation/polymesh-rest-api:latest}
+    init: true
+    restart: unless-stopped
+    depends_on:
+      - alice
+      - vault
+      - tooling
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    ports:
+      - ${REST_PORT:-3004}:3000
+    environment:
+      POLYMESH_NODE_URL: 'ws://alice:9944'
+      POLYMESH_MIDDLEWARE_URL: 'http://tooling:3000'
+      POLYMESH_MIDDLEWARE_API_KEY: 'needed-but-not-checked'
+      VAULT_URL: 'http://vault:8200/v1/transit'
+      VAULT_TOKEN: 'root'
+      AUTH_STRATEGY: 'open'
+      DEVELOPER_UTILS: 'true'
