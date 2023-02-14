@@ -57,7 +57,7 @@ services:
       DB_USER: '${PG_USER:-postgres}'
       DB_PASS: '${PG_PASSWORD:-postgres}'
       DB_DATABASE: '${PG_DB:-postgres}'
-      DB_PORT: '${PG_PORT:-postgres}'
+      DB_PORT: '${PG_PORT:-5432}'
       DB_HOST: '${PG_HOST:-postgres}'
       NODE_ENV: local
     command:
@@ -79,6 +79,25 @@ services:
       PG_PASSWORD: '${PG_PASSWORD:-postgres}'
       STAGE: dev
 
+  graphql-server:
+    image: onfinality/subql-query:v1.0.0
+    ports:
+      - ${SQ_PORT:-3001}:3000
+    depends_on:
+      - 'postgres'
+      - 'subquery'
+    restart: always
+    environment:
+      DB_DATABASE: postgres
+      DB_USER: '${PG_USER:-postgres}'
+      DB_PASS: '${PG_PASSWORD:-postgres}'
+      DB_PORT: '${PG_PORT:-5432}'
+      DB_HOST: '${PG_HOST:-postgres}'
+    command:
+      - --name=public
+      - --playground
+      - --indexer=http://subquery:3000
+
   rest_api:
     image: ${REST_IMAGE:-polymeshassociation/polymesh-rest-api:latest}
     init: true
@@ -86,15 +105,14 @@ services:
     depends_on:
       - alice
       - vault
-      - tooling
+      - graphql-server
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     ports:
       - ${REST_PORT:-3004}:3000
     environment:
       POLYMESH_NODE_URL: 'ws://alice:9944'
-      POLYMESH_MIDDLEWARE_URL: 'http://tooling:3000'
-      POLYMESH_MIDDLEWARE_API_KEY: 'needed-but-not-checked'
+      POLYMESH_MIDDLEWARE_V2_URL: 'http://graphql-engine:3000'
       VAULT_URL: 'http://vault:8200/v1/transit'
       VAULT_TOKEN: 'root'
       AUTH_STRATEGY: 'open'
