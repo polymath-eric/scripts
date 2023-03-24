@@ -1,28 +1,4 @@
 services:
-  postgres:
-    image: postgres:12-alpine
-    restart: unless-stopped
-    ports:
-      - ${PG_PORT:-5432}:5432
-    volumes:
-      - './pg-extensions.sh:/docker-entrypoint-initdb.d/load-extensions.sh'
-    environment:
-      POSTGRES_PASSWORD: postgres
-
-  vault:
-    image: vault:${VAULT_VERSION:-latest}
-    profiles:
-      - vault
-    restart: unless-stopped
-    ports:
-      - ${VAULT_PORT:-8200}:8200
-    volumes:
-      - vault-volume:/vault/data:rw
-      - ./vault:/vault/config:rw
-    cap_add:
-      - IPC_LOCK
-    entrypoint: vault server -config=/vault/config/vault.json
-
   mesh:
     image: ${CHAIN_IMAGE:-polymeshassociation/polymesh:latest-develop-debian}
     init: true # Faster shutdown by container process not be PID 1
@@ -40,6 +16,36 @@ services:
       [
         '--alice --chain dev',
       ]
+
+  postgres:
+    image: postgres:12-alpine
+    restart: unless-stopped
+    ports:
+      - ${PG_PORT:-5432}:5432
+    volumes:
+      - './pg-extensions.sh:/docker-entrypoint-initdb.d/load-extensions.sh'
+    environment:
+      POSTGRES_PASSWORD: postgres
+
+  rest-api:
+    image: ${REST_IMAGE:-polymeshassociation/polymesh-rest-api:latest}
+    init: true
+    restart: unless-stopped
+    depends_on:
+      - mesh
+      - vault
+      - graphql-server
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    ports:
+      - ${REST_PORT:-3004}:3000
+    environment:
+      POLYMESH_NODE_URL: 'ws://mesh:9944'
+      POLYMESH_MIDDLEWARE_V2_URL: 'http://graphql-engine:3000'
+      LOCAL_SIGNERS: 'alice,bob,charlie'
+      LOCAL_MNEMONICS: '//Alice,//Bob,//Charlie'
+      AUTH_STRATEGY: 'open'
+      DEVELOPER_UTILS: 'true'
 
   subquery:
     image: '${SUBQUERY_IMAGE:-polymeshassociation/polymesh-subquery:latest}'
@@ -80,27 +86,22 @@ services:
       - --playground
       - --indexer=http://subquery:3000
 
-  rest_api:
-    image: ${REST_IMAGE:-polymeshassociation/polymesh-rest-api:latest}
-    init: true
-    restart: unless-stopped
-    depends_on:
-      - mesh
+  # IMPORTANT - `docker volume create vault-volume` needs to be ran
+  vault:
+    image: vault:${VAULT_VERSION:-latest}
+    profiles:
       - vault
-      - graphql-server
-    extra_hosts:
-      - 'host.docker.internal:host-gateway'
+    restart: unless-stopped
     ports:
-      - ${REST_PORT:-3004}:3000
-    environment:
-      POLYMESH_NODE_URL: 'ws://mesh:9944'
-      POLYMESH_MIDDLEWARE_V2_URL: 'http://graphql-engine:3000'
-      LOCAL_SIGNERS: 'alice,bob,charlie'
-      LOCAL_MNEMONICS: '//Alice,//Bob,//Charlie'
-      AUTH_STRATEGY: 'open'
-      DEVELOPER_UTILS: 'true'
+      - ${VAULT_PORT:-8200}:8200
+    volumes:
+      - vault-volume:/vault/data:rw
+      - ./vault:/vault/config:rw
+    cap_add:
+      - IPC_LOCK # Prevents secrets from swapping to disk
+    entrypoint: vault server -config=/vault/config/vault.json
 
-  vault_rest_api:
+  vault-rest-api:
     profiles:
       - vault
     image: ${REST_IMAGE:-polymeshassociation/polymesh-rest-api:latest}
@@ -118,7 +119,7 @@ services:
       POLYMESH_NODE_URL: 'ws://mesh:9944'
       POLYMESH_MIDDLEWARE_V2_URL: 'http://graphql-engine:3000'
       VAULT_URL: 'http://vault:8200/v1/transit'
-      VAULT_TOKEN: 'root'
+      VAULT_TOKEN: ${VAULT_TOKEN} # read from env
       AUTH_STRATEGY: 'open'
       DEVELOPER_UTILS: 'true'
 

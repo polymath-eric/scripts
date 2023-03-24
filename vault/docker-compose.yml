@@ -1,0 +1,19 @@
+services:
+  vault:
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    ports:
+      - "8200:8200"
+    volumes:
+      - vault-volume:/vault/data:rw
+      - ./vault:/vault/config:rw
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_TOKEN:-root}
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+    cap_add:
+      - IPC_LOCK
+    entrypoint: vault server -config=/vault/config/vault.json
+
+volumes:
+  vault-volume:
+    external: true
