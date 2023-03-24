@@ -11,23 +11,19 @@ services:
 
   vault:
     image: vault:${VAULT_VERSION:-latest}
+    profiles:
+      - vault
     restart: unless-stopped
     ports:
       - ${VAULT_PORT:-8200}:8200
+    volumes:
+      - vault-volume:/vault/data:rw
+      - ./vault:/vault/config:rw
     cap_add:
       - IPC_LOCK
-    entrypoint: vault server -dev -dev-listen-address="0.0.0.0:8200" -dev-root-token-id="root"
+    entrypoint: vault server -config=/vault/config/vault.json
 
-  vault-init:
-    image: vault:${VAULT_VERSION:-latest}
-    volumes:
-      - ./vault-init.sh:/vault-init.sh
-    depends_on:
-      - vault
-    restart: "no"
-    entrypoint: sh -c "/vault-init.sh"
-
-  alice:
+  mesh:
     image: ${CHAIN_IMAGE:-polymeshassociation/polymesh:latest-develop-debian}
     init: true # Faster shutdown by container process not be PID 1
     restart: unless-stopped
@@ -52,8 +48,8 @@ services:
     depends_on:
       - 'postgres'
     environment:
-      NETWORK_ENDPOINT: ws://alice:9944
-      NETWORK_HTTP_ENDPOINT: http://alice:9933
+      NETWORK_ENDPOINT: ws://mesh:9944
+      NETWORK_HTTP_ENDPOINT: http://mesh:9933
       DB_USER: '${PG_USER:-postgres}'
       DB_PASS: '${PG_PASSWORD:-postgres}'
       DB_DATABASE: '${PG_DB:-postgres}'
@@ -64,20 +60,6 @@ services:
       - --batch-size=500
       - -f=/app
       - --local
-
-  tooling:
-    image: ${TOOLING_IMAGE:-polymeshassociation/polymesh-tooling-gql}
-    init: true
-    restart: unless-stopped
-    depends_on:
-      - 'postgres'
-    ports:
-      - ${TOOLING_PORT:-3007}:3000
-    environment:
-      PG_HOST: '${PG_HOST:-postgres}'
-      PG_USERNAME: '${PG_USER:-postgres}'
-      PG_PASSWORD: '${PG_PASSWORD:-postgres}'
-      STAGE: dev
 
   graphql-server:
     image: onfinality/subql-query:v1.0.0
@@ -103,7 +85,7 @@ services:
     init: true
     restart: unless-stopped
     depends_on:
-      - alice
+      - mesh
       - vault
       - graphql-server
     extra_hosts:
@@ -111,9 +93,35 @@ services:
     ports:
       - ${REST_PORT:-3004}:3000
     environment:
-      POLYMESH_NODE_URL: 'ws://alice:9944'
+      POLYMESH_NODE_URL: 'ws://mesh:9944'
+      POLYMESH_MIDDLEWARE_V2_URL: 'http://graphql-engine:3000'
+      LOCAL_SIGNERS: 'alice,bob,charlie'
+      LOCAL_MNEMONICS: '//Alice,//Bob,//Charlie'
+      AUTH_STRATEGY: 'open'
+      DEVELOPER_UTILS: 'true'
+
+  vault_rest_api:
+    profiles:
+      - vault
+    image: ${REST_IMAGE:-polymeshassociation/polymesh-rest-api:latest}
+    init: true
+    restart: unless-stopped
+    depends_on:
+      - mesh
+      - vault
+      - graphql-server
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    ports:
+      - ${VAULT_REST_PORT:-3014}:3000
+    environment:
+      POLYMESH_NODE_URL: 'ws://mesh:9944'
       POLYMESH_MIDDLEWARE_V2_URL: 'http://graphql-engine:3000'
       VAULT_URL: 'http://vault:8200/v1/transit'
       VAULT_TOKEN: 'root'
       AUTH_STRATEGY: 'open'
       DEVELOPER_UTILS: 'true'
+
+volumes:
+  vault-volume:
+    external: true
