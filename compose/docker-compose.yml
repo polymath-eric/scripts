@@ -119,7 +119,7 @@ services:
       POLYMESH_NODE_URL: 'ws://mesh:9944'
       POLYMESH_MIDDLEWARE_V2_URL: 'http://graphql-engine:3000'
       VAULT_URL: 'http://vault:8200/v1/transit'
-      VAULT_TOKEN: ${VAULT_TOKEN} # read from env
+      VAULT_TOKEN: ${VAULT_TOKEN:-}
       AUTH_STRATEGY: 'open'
       DEVELOPER_UTILS: 'true'
 
