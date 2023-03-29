@@ -1,5 +1,5 @@
 services:
-  mesh:
+  chain:
     image: ${CHAIN_IMAGE:-polymeshassociation/polymesh:latest-develop-debian}
     init: true # Faster shutdown by container process not be PID 1
     restart: unless-stopped
@@ -32,7 +32,7 @@ services:
     init: true
     restart: unless-stopped
     depends_on:
-      - mesh
+      - chain
       - vault
       - graphql-server
     extra_hosts:
@@ -40,7 +40,7 @@ services:
     ports:
       - ${REST_PORT:-3004}:3000
     environment:
-      POLYMESH_NODE_URL: 'ws://mesh:9944'
+      POLYMESH_NODE_URL: 'ws://chain:9944'
       POLYMESH_MIDDLEWARE_V2_URL: 'http://graphql-engine:3000'
       LOCAL_SIGNERS: 'alice,bob,charlie'
       LOCAL_MNEMONICS: '//Alice,//Bob,//Charlie'
@@ -54,8 +54,8 @@ services:
     depends_on:
       - 'postgres'
     environment:
-      NETWORK_ENDPOINT: ws://mesh:9944
-      NETWORK_HTTP_ENDPOINT: http://mesh:9933
+      NETWORK_ENDPOINT: ws://chain:9944
+      NETWORK_HTTP_ENDPOINT: http://chain:9933
       DB_USER: '${PG_USER:-postgres}'
       DB_PASS: '${PG_PASSWORD:-postgres}'
       DB_DATABASE: '${PG_DB:-postgres}'
@@ -108,7 +108,7 @@ services:
     init: true
     restart: unless-stopped
     depends_on:
-      - mesh
+      - chain
       - vault
       - graphql-server
     extra_hosts:
@@ -116,7 +116,7 @@ services:
     ports:
       - ${VAULT_REST_PORT:-3014}:3000
     environment:
-      POLYMESH_NODE_URL: 'ws://mesh:9944'
+      POLYMESH_NODE_URL: 'ws://chain:9944'
       POLYMESH_MIDDLEWARE_V2_URL: 'http://graphql-engine:3000'
       VAULT_URL: 'http://vault:8200/v1/transit'
       VAULT_TOKEN: ${VAULT_TOKEN:-}
