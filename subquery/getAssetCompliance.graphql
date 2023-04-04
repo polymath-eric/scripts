@@ -1,0 +1,9 @@
+query getCompliance($ticker: String) {
+  compliances(filter: { assetId: { equalTo: $ticker } }) {
+    totalCount
+    nodes {
+      complianceId
+      data
+    }
+  }
+}

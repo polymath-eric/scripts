@@ -1,0 +1,40 @@
+query getIdentityInstructions($did: String!, $afterCursor: Cursor) {
+  legs(
+    first: 20
+    after: $afterCursor
+    orderBy: CREATED_AT_DESC
+    filter: {
+      or: [{ fromId: { startsWith: $did } }, { toId: { startsWith: $did } }]
+    }
+  ) {
+    totalCount
+    nodes {
+      instruction {
+        id
+        status
+        settlementType
+        venueId
+        legs {
+          nodes {
+            assetId
+            amount
+            from {
+              identityId
+              number # Portfolio ID (0 = default)
+            }
+            to {
+              identityId
+              number
+            }
+          }
+        }
+      }
+    }
+    # Pagination info
+    totalCount
+    pageInfo {
+      hasNextPage
+      endCursor # set `afterCursor` to this to fetch the next page
+    }
+  }
+}

@@ -1,0 +1,26 @@
+query getVenueInstructions($venueId: String!, $afterCursor: Cursor) {
+  venue(id: $venueId) {
+    details
+    instructions(first: 20, after: $afterCursor, orderBy: CREATED_AT_DESC) {
+      nodes {
+        settlementType
+        legs {
+          totalCount
+          nodes {
+            assetId
+            amount
+            fromId
+            toId
+          }
+        }
+      }
+
+      # Pagination info
+      totalCount
+      pageInfo {
+        hasNextPage
+        endCursor # set `afterCursor` to this to fetch the next page
+      }
+    }
+  }
+}

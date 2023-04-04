@@ -1,0 +1,20 @@
+# fetch asset list info, ordered by their creation
+query getAssets($afterCursor: Cursor) {
+  assets(first: 20, after: $afterCursor, orderBy: CREATED_AT_DESC) {
+    nodes {
+      ticker
+      name
+      createdBlock {
+        id
+        datetime # The asset creation "wall time", as set by the block author
+      }
+      createdAt # Postgres timestamp
+    }
+    # Pagination info
+    totalCount
+    pageInfo {
+      hasNextPage
+      endCursor # set `afterCursor` to this to fetch the next page
+    }
+  }
+}

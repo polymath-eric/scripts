@@ -1,0 +1,24 @@
+query getAssetInvestment($ticker: String!, $afterCursor: Cursor) {
+  investments(
+    first: 20
+    filter: { offeringToken: { equalTo: $ticker } }
+    after: $afterCursor
+  ) {
+    nodes {
+      id
+      investorId
+      raiseToken
+      raiseTokenAmount
+      offeringToken
+      offeringTokenAmount
+      stoId
+    }
+
+    # Pagination info
+    totalCount
+    pageInfo {
+      hasNextPage
+      endCursor # set `afterCursor` to this to fetch the next page
+    }
+  }
+}

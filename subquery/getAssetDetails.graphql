@@ -1,0 +1,56 @@
+query getAsset($ticker: String!) {
+  asset(id: $ticker) {
+    ticker
+    ownerId # The asset owner DID
+    totalSupply # The total issued supply
+    totalTransfers # The total number of transfers involving this asset
+    fundingRound # The most recent funding round name
+    createdBlock {
+      id # The block number the asset was created
+      datetime # The "wallclock" time the asset was created, as set by the block author
+    }
+    identifiers # JSON array of external IDs, e.g. ISIN
+    # Fetch the 10 biggest holder of the asset
+    holders(first: 10, orderBy: AMOUNT_DESC) {
+      totalCount
+      nodes {
+        identityId
+        amount
+      }
+    }
+
+    # Fetch the 10 most recent administrative actions e.g. compliance rules changed
+    tickerExternalAgentActions(first: 10, orderBy: CREATED_AT_DESC) {
+      totalCount
+      nodes {
+        createdBlockId
+        callerId
+        palletName
+        eventId
+      }
+    }
+
+    # Fetch the 10 most recent distributions e.g. dividend payment
+    distributions(first: 10, orderBy: CREATED_AT_DESC) {
+      totalCount
+      nodes {
+        id
+        assetId
+        amount
+        paymentAt
+        perShare
+      }
+    }
+
+    # Fetch the 10 most recently filed documents e.g. 10K
+    documents(first: 10, orderBy: CREATED_AT_DESC) {
+      totalCount
+      nodes {
+        documentId
+        filedAt
+        link # find the document at this permalink
+        contentHash # document contents can be checked with this hash
+      }
+    }
+  }
+}
