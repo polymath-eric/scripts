@@ -1,6 +1,6 @@
 services:
   chain:
-    image: ${CHAIN_IMAGE:-polymeshassociation/polymesh:latest-develop-debian}
+    image: ${CHAIN_IMAGE}
     init: true # Faster shutdown by container process not be PID 1
     restart: unless-stopped
     ports: # expose ports to localhost
@@ -28,27 +28,27 @@ services:
       POSTGRES_PASSWORD: postgres
 
   rest-api:
-    image: ${REST_IMAGE:-polymeshassociation/polymesh-rest-api:latest}
+    image: ${REST_IMAGE}
     init: true
     restart: unless-stopped
     depends_on:
       - chain
-      - vault
-      - graphql-server
+      - graphql
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     ports:
       - ${REST_PORT:-3004}:3000
     environment:
       POLYMESH_NODE_URL: 'ws://chain:9944'
-      POLYMESH_MIDDLEWARE_V2_URL: 'http://graphql-engine:3000'
+      POLYMESH_MIDDLEWARE_V2_URL: 'http://graphql:3000'
       LOCAL_SIGNERS: 'alice,bob,charlie'
       LOCAL_MNEMONICS: '//Alice,//Bob,//Charlie'
       AUTH_STRATEGY: 'open'
       DEVELOPER_UTILS: 'true'
 
+
   subquery:
-    image: '${SUBQUERY_IMAGE:-polymeshassociation/polymesh-subquery:latest}'
+    image: '${SUBQUERY_IMAGE}'
     init: true
     restart: unless-stopped
     depends_on:
@@ -67,7 +67,7 @@ services:
       - -f=/app
       - --local
 
-  graphql-server:
+  graphql:
     image: onfinality/subql-query:v1.0.0
     ports:
       - ${SQ_PORT:-3001}:3000
@@ -88,7 +88,7 @@ services:
 
   # IMPORTANT - `docker volume create vault-volume` needs to be ran
   vault:
-    image: vault:${VAULT_VERSION:-latest}
+    image: hashicorp/vault:${VAULT_VERSION:-latest}
     profiles:
       - vault
     restart: unless-stopped
@@ -104,13 +104,13 @@ services:
   vault-rest-api:
     profiles:
       - vault
-    image: ${REST_IMAGE:-polymeshassociation/polymesh-rest-api:latest}
+    image: ${REST_IMAGE}
     init: true
     restart: unless-stopped
     depends_on:
       - chain
       - vault
-      - graphql-server
+      - graphql
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     ports:
