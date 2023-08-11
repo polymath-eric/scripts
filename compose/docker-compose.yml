@@ -51,6 +51,12 @@ services:
     image: '${SUBQUERY_IMAGE}'
     init: true
     restart: unless-stopped
+    healthcheck:
+      test: curl --fail http://localhost:3000/meta || exit 1
+      interval: 20s
+      retries: 10
+      start_period: 20s
+      timeout: 10s
     depends_on:
       - 'postgres'
     environment:
@@ -72,9 +78,10 @@ services:
     ports:
       - ${SQ_PORT:-3001}:3000
     depends_on:
-      - 'postgres'
-      - 'subquery'
-    restart: always
+      postgres:
+        condition: service_started
+      subquery:
+        condition: service_healthy
     environment:
       DB_DATABASE: postgres
       DB_USER: '${PG_USER:-postgres}'
